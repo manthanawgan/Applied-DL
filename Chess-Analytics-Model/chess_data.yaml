@@ -1,8 +1,6 @@
-path: Chess-Ananlytics-Model\data
 
-train: Chess-Ananlytics-Model\data\train\images
-val: Chess-Ananlytics-Model\data\valid\images
-test: Chess-Ananlytics-Model\data\test\images
+train: data/train/images
+val: data/valid/images
 
 nc: 12
 

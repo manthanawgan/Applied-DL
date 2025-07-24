@@ -18,14 +18,12 @@ PROMPT = "You are a world-class swimming coach. Analyze this single frame of a s
 mp_pose = mp.solutions.pose
 mp_drawing = mp.solutions.drawing_utils
 
-# Define which landmarks to track (hands and legs only)
+# Define which landmarks to track (hands and feet only)
 TRACKED_LANDMARKS = [
     mp_pose.PoseLandmark.LEFT_WRIST,
     mp_pose.PoseLandmark.RIGHT_WRIST,
     mp_pose.PoseLandmark.LEFT_ANKLE,
     mp_pose.PoseLandmark.RIGHT_ANKLE,
-    mp_pose.PoseLandmark.LEFT_KNEE,
-    mp_pose.PoseLandmark.RIGHT_KNEE,
 ]
 
 # Trail settings
@@ -35,8 +33,6 @@ TRAIL_COLORS = {
     mp_pose.PoseLandmark.RIGHT_WRIST: (0, 255, 255),  # Yellow for right hand
     mp_pose.PoseLandmark.LEFT_ANKLE: (255, 0, 0),     # Blue for left foot
     mp_pose.PoseLandmark.RIGHT_ANKLE: (255, 0, 255),  # Magenta for right foot
-    mp_pose.PoseLandmark.LEFT_KNEE: (128, 255, 0),    # Light green for left knee
-    mp_pose.PoseLandmark.RIGHT_KNEE: (255, 128, 0),   # Orange for right knee
 }
 
 class LandmarkTracker:
@@ -77,7 +73,7 @@ class LandmarkTracker:
                 for i in range(1, len(trail)):
                     # Calculate alpha and thickness based on position in trail
                     alpha = i / len(trail)
-                    thickness = max(2, int(8 * alpha))  # Thicker lines, min 2px
+                    thickness = max(4, int(12 * alpha))  # Thicker lines, min 4px
                     
                     # Calculate color intensity (fade effect)
                     fade_factor = alpha * 0.8  # Max 80% opacity
@@ -99,15 +95,12 @@ class LandmarkTracker:
                 # Add a subtle white border
                 cv2.circle(overlay, current_pos, 6, (255, 255, 255), 1)
         
-        # Apply Gaussian blur for smooth effect
-        blurred_overlay = cv2.GaussianBlur(overlay, (5, 5), 0)
-        
-        # Blend the blurred overlay with the original frame
-        mask = blurred_overlay.astype(float) / 255.0
+        # Blend the overlay with the original frame
+        mask = overlay.astype(float) / 255.0
         frame_float = frame.astype(float)
         
         # Combine using alpha blending
-        result = frame_float * (1 - mask) + blurred_overlay.astype(float) * mask
+        result = frame_float * (1 - mask) + overlay.astype(float) * mask
         
         # Convert back to uint8 and update frame
         frame[:] = result.astype(np.uint8)
@@ -130,40 +123,6 @@ def wrap_text(text: str, width: int) -> list[str]:
     """
     wrapper = textwrap.TextWrapper(width=width)
     return wrapper.wrap(text=text)
-
-def draw_legend(frame, frame_width, frame_height):
-    """Draw a legend showing what each color represents"""
-    legend_items = [
-        ("Left Hand", TRAIL_COLORS[mp_pose.PoseLandmark.LEFT_WRIST]),
-        ("Right Hand", TRAIL_COLORS[mp_pose.PoseLandmark.RIGHT_WRIST]),
-        ("Left Foot", TRAIL_COLORS[mp_pose.PoseLandmark.LEFT_ANKLE]),
-        ("Right Foot", TRAIL_COLORS[mp_pose.PoseLandmark.RIGHT_ANKLE]),
-        ("Left Knee", TRAIL_COLORS[mp_pose.PoseLandmark.LEFT_KNEE]),
-        ("Right Knee", TRAIL_COLORS[mp_pose.PoseLandmark.RIGHT_KNEE]),
-    ]
-    
-    # Position legend in top-right corner
-    legend_x = frame_width - 150
-    legend_y = 30
-    
-    # Semi-transparent background for legend
-    overlay = frame.copy()
-    cv2.rectangle(overlay, (legend_x - 10, legend_y - 20), 
-                  (frame_width - 10, legend_y + len(legend_items) * 25), 
-                  (0, 0, 0), -1)
-    frame = cv2.addWeighted(overlay, 0.7, frame, 0.3, 0)
-    
-    # Draw legend items
-    for i, (label, color) in enumerate(legend_items):
-        y_pos = legend_y + i * 25
-        # Draw colored circle
-        cv2.circle(frame, (legend_x, y_pos), 5, color, -1)
-        cv2.circle(frame, (legend_x, y_pos), 5, (255, 255, 255), 1)
-        # Draw label
-        cv2.putText(frame, label, (legend_x + 15, y_pos + 5), 
-                   cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1)
-    
-    return frame
 
 def main():
     """
@@ -216,12 +175,9 @@ def main():
                 
                 # Draw trailing effects for hands and legs
                 tracker.draw_trails(frame)
-                
-                # Draw legend
-                frame = draw_legend(frame, frame_width, frame_height)
 
                 # Get feedback every second
-                if frame_count % int(fps) == 0:
+                if frame_count == 0:
                     print(f"Getting feedback for frame {frame_count}...")
                     pil_img = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
                     feedback_text = get_gemini_feedback(pil_img)
@@ -229,7 +185,7 @@ def main():
 
                 # Overlay Feedback Text (Bottom Center)
                 font = cv2.FONT_HERSHEY_SIMPLEX
-                font_scale = 1.0
+                font_scale = 0.7
                 font_color = (255, 255, 255)
                 line_type = 2
                 
